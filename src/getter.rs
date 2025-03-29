@@ -80,8 +80,13 @@ pub async fn get_tile(url: &str, user_agent: &str) -> Result<Vec<u8>, reqwest::E
     Ok(bytes.to_vec())
 }
 
-pub async fn get_jsons(user_agent: &str, top: f64, left: f64, bottom: f64, right: f64) -> serde_json::Value {
-
+pub async fn get_jsons(
+    user_agent: &str,
+    top: f64,
+    left: f64,
+    bottom: f64,
+    right: f64,
+) -> serde_json::Value {
     // URLs
     let url = replace_url_waz(&WAZ, top, left, bottom, right);
 
@@ -90,12 +95,14 @@ pub async fn get_jsons(user_agent: &str, top: f64, left: f64, bottom: f64, right
 
     // Data
     promise.await.unwrap_or(serde_json::json!({}))
-
 }
 
 pub async fn get_json(url: &str, user_agent: &str) -> Result<serde_json::Value, reqwest::Error> {
     // Client
-    let client = reqwest::Client::builder().user_agent(user_agent).build()?;
+    let client = reqwest::Client::builder()
+        .user_agent(user_agent)
+        .gzip(true)
+        .build()?;
 
     // Response
     let response = client.get(url).send().await?;
