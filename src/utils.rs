@@ -1,3 +1,16 @@
+// Change zoom scale
+pub fn zoom_scale(new_z: u16, x: u32, y: u32, z: u16) -> (u32, u32) {
+    // Get Correlation
+    let correlation = i32::from(i32::from(z) - i32::from(new_z));
+
+    // New Coordinates
+    let new_x = f64::from(x) / 2_f64.powi(correlation);
+    let new_y = f64::from(y) / 2_f64.powi(correlation);
+
+    (new_x.floor() as u32, new_y.floor() as u32)
+}
+
+// XYZ -> Lat & Lon
 pub fn xyz_to_coordinate(x: u32, y: u32, z: u16) -> (f64, f64) {
     // Size
     let n = 2_f64.powi(i32::from(z));
@@ -15,6 +28,7 @@ pub fn xyz_to_coordinate(x: u32, y: u32, z: u16) -> (f64, f64) {
     (latitude, longitude)
 }
 
+// Translate coordinates
 pub fn coordinates_confine(
     lat: f64,
     lon: f64,
@@ -33,9 +47,11 @@ pub fn coordinates_confine(
     let item_x: f64 = (left - lon) * ratio_x;
     let item_y: f64 = (top - lat) * ratio_y;
 
+    // Return
     (item_x.floor() as u32, item_y.floor() as u32)
 }
 
+// Fix for images to represent a centre
 pub fn translate_edge(
     width: u32,
     height: u32,
@@ -52,5 +68,6 @@ pub fn translate_edge(
     let translated_x: u32 = if x > offset_x { x - offset_x } else { 0 };
     let translated_y: u32 = if y > offset_y { y - offset_y } else { 0 };
 
+    // Return
     (translated_x, translated_y)
 }
