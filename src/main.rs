@@ -120,9 +120,8 @@ async fn default(
         arguments.z,
     );
 
-    // Fetch GeoRSS
-    let url = getter::replace_url_waz(getter::WAZ, top, left, bottom, right);
-    let data = getter::get_geojson(&url, &user_agent);
+    // Fetch GeoJSON
+    let data = getter::get_jsons(&user_agent, top, left, bottom, right);
 
     // Start to get all tiles
     let tiles = getter::get_tiles(&user_agent, arguments.x, arguments.y, arguments.z);
@@ -152,8 +151,8 @@ async fn default(
     // Create local list of alerts
     let mut tidy_alerts: Vec<Alert> = Vec::new();
 
-    // Get the data
-    let json = data.await.unwrap();
+    // Wait
+    let json = data.await;
 
     // Iterate alerts
     if let Some(alerts) = json["alerts"].as_array() {
@@ -176,7 +175,7 @@ async fn default(
     }
 
     // Sort vector
-    tidy_alerts.sort_by(|before, after| {
+    tidy_alerts.sort_by(|after, before| {
         if before.lat == after.lat {
             before.lon.partial_cmp(&after.lon).unwrap()
         } else {

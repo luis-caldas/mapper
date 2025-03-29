@@ -3,12 +3,10 @@
  *************/
 
 // XYZ Maps
-const DEFAULT: usize = 0;
-const LIST: [&str; 1] = ["Google"];
 const LINKS: [&str; 1] = ["https://mts0.google.com/vt/lyrs=h,traffic&x={x}&y={y}&z={z}&style=3"];
 
 // WAZ
-pub const WAZ: &str = "https://embed.waze.com/live-map/api/georss?env=row&types=alerts&top={top}&bottom={bottom}&left={left}&right={right}";
+const WAZ: &str = "https://embed.waze.com/live-map/api/georss?env=row&types=alerts&top={top}&bottom={bottom}&left={left}&right={right}";
 
 // Offsets around tile
 pub const WAZ_PAD_X: [i32; 3] = [-1, 0, 1];
@@ -22,7 +20,7 @@ pub const CACHE_TTL: u16 = 60; // Seconds
  * Functions *
  *************/
 
-pub fn replace_url_waz(input: &str, top: f64, left: f64, bottom: f64, right: f64) -> String {
+fn replace_url_waz(input: &str, top: f64, left: f64, bottom: f64, right: f64) -> String {
     input
         .replace("{top}", &top.to_string())
         .replace("{left}", &left.to_string())
@@ -30,21 +28,11 @@ pub fn replace_url_waz(input: &str, top: f64, left: f64, bottom: f64, right: f64
         .replace("{right}", &right.to_string())
 }
 
-pub fn replace_url(input: &str, x: u32, y: u32, z: u16) -> String {
+fn replace_url(input: &str, x: u32, y: u32, z: u16) -> String {
     input
         .replace("{x}", &x.to_string())
         .replace("{y}", &y.to_string())
         .replace("{z}", &z.to_string())
-}
-
-pub fn find_url(name: &str) -> &str {
-    // Find it
-    let found = LIST
-        .iter()
-        .position(|&each| each == name)
-        .unwrap_or(DEFAULT);
-
-    LINKS[found]
 }
 
 pub async fn get_tiles(user_agent: &str, x: u32, y: u32, z: u16) -> Vec<Vec<u8>> {
@@ -92,9 +80,20 @@ pub async fn get_tile(url: &str, user_agent: &str) -> Result<Vec<u8>, reqwest::E
     Ok(bytes.to_vec())
 }
 
-// pub async fn get_json()
+pub async fn get_jsons(user_agent: &str, top: f64, left: f64, bottom: f64, right: f64) -> serde_json::Value {
 
-pub async fn get_geojson(url: &str, user_agent: &str) -> Result<serde_json::Value, reqwest::Error> {
+    // URLs
+    let url = replace_url_waz(&WAZ, top, left, bottom, right);
+
+    // Promise
+    let promise = get_json(&url, &user_agent);
+
+    // Data
+    promise.await.unwrap_or(serde_json::json!({}))
+
+}
+
+pub async fn get_json(url: &str, user_agent: &str) -> Result<serde_json::Value, reqwest::Error> {
     // Client
     let client = reqwest::Client::builder().user_agent(user_agent).build()?;
 
