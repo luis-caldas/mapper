@@ -1,3 +1,12 @@
+/*************
+ * Functions *
+ *************/
+
+// Find lower bound of slice
+pub fn slicer(number: u64, size: u16) -> u64 {
+    number - (number % u64::from(size))
+}
+
 // Change zoom scale
 pub fn zoom_scale(new_z: u16, x: u32, y: u32, z: u16) -> (u32, u32) {
     // Get Correlation

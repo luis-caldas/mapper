@@ -155,18 +155,22 @@ async fn default(
     let json = data.await;
 
     // Iterate alerts
-    if let Some(alerts) = json["alerts"].as_array() {
+    if let Some(alerts) = json[getter::IN_ALERTS].as_array() {
         for alert in alerts.iter() {
             // Get the icon reference
             let icon_reference = cross::find_alert_asset(
-                alert["type"].as_str().unwrap(),
-                alert["subtype"].as_str().unwrap(),
+                alert[getter::IN_TYPE].as_str().unwrap(),
+                alert[getter::IN_SUBTYPE].as_str().unwrap(),
             );
             // Create alert
             let item_alert = Alert {
                 icon: icon_reference,
-                lat: alert["location"]["y"].as_f64().unwrap(),
-                lon: alert["location"]["x"].as_f64().unwrap(),
+                lat: alert[getter::IN_LOCATION][getter::IN_LOCATION_Y]
+                    .as_f64()
+                    .unwrap(),
+                lon: alert[getter::IN_LOCATION][getter::IN_LOCATION_X]
+                    .as_f64()
+                    .unwrap(),
             };
 
             // Add to the vector

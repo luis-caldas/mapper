@@ -16,6 +16,14 @@ pub const WAZ_PAD_Y: [i32; 3] = [-1, 0, 1];
 pub const CACHE_ZOOM: u16 = 10; // XYZ - Z
 pub const CACHE_TTL: u16 = 60; // Seconds
 
+// Locators
+pub const IN_ALERTS: &str = "alerts";
+pub const IN_TYPE: &str = "type";
+pub const IN_SUBTYPE: &str = "subtype";
+pub const IN_LOCATION: &str = "location";
+pub const IN_LOCATION_X: &str = "x";
+pub const IN_LOCATION_Y: &str = "y";
+
 /*************
  * Functions *
  *************/
