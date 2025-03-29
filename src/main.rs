@@ -1,0 +1,270 @@
+/***********
+ * Imports *
+ ***********/
+
+// #![allow(unused_imports)]
+// #![allow(unused_variables)]
+// #![allow(unused_mut)]
+// #![allow(dead_code)]
+
+// HTTP
+use axum::{
+    body::Body,
+    extract::{ConnectInfo, Query},
+    http::{header, StatusCode},
+    response::Response,
+    routing::get,
+    Router,
+};
+use axum_extra::{headers::UserAgent, TypedHeader};
+// Data
+use serde::Deserialize;
+// Standard
+use std::io::{BufWriter, Cursor};
+use std::net::{Ipv4Addr, SocketAddr};
+// Image
+use image::{imageops, ColorType, DynamicImage, GenericImageView, ImageBuffer, ImageFormat, RgbaImage};
+
+// Utilities
+mod cross;
+mod getter;
+mod utils;
+
+/*************
+ * Constants *
+ *************/
+
+// Address
+const ADDRESS: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+const PORT: u16 = 8080;
+const NAME: &str = "mapper";
+
+// Offsets around tile
+const OFFSETS_AROUND_X: [i32; 3] = [-1, 0, 1];
+const OFFSETS_AROUND_Y: [i32; 3] = [-1, 0, 1];
+
+/**************
+ * Structures *
+ **************/
+
+struct Alert<'together> {
+    icon: &'together [u8],
+    lat: f64,
+    lon: f64,
+}
+
+/********
+ * Main *
+ ********/
+
+#[tokio::main]
+async fn main() {
+    // Build Application
+    let app = Router::new()
+        // Default Route
+        .route("/", get(default));
+
+    // Create listener
+    let bind: String = format!("{}:{}", ADDRESS, PORT);
+    let listener = tokio::net::TcpListener::bind(bind.as_str()).await.unwrap();
+
+    // Verbose
+    println!("Listening on {}", bind.as_str());
+
+    // Server It
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
+}
+
+/***********
+ * Handler *
+ ***********/
+
+// Query
+#[derive(Deserialize)]
+struct Coordinates {
+    x: u32,
+    y: u32,
+    z: u16,
+}
+
+// Basic
+async fn default(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    TypedHeader(raw_agent): TypedHeader<UserAgent>,
+    arguments: Query<Coordinates>,
+) -> Response {
+    // User Agent
+    let user_agent = raw_agent.to_string();
+
+    // Calculate Coordinates
+    let (top, left) = utils::xyz_to_coordinate(
+        ((arguments.x as i32) + OFFSETS_AROUND_X.iter().min().unwrap_or(&0)) as u32,
+        ((arguments.y as i32) + OFFSETS_AROUND_Y.iter().min().unwrap_or(&0)) as u32,
+        arguments.z,
+    );
+    let (bottom, right) = utils::xyz_to_coordinate(
+        ((arguments.x as i32) + OFFSETS_AROUND_X.iter().max().unwrap_or(&0)) as u32 + 1,
+        ((arguments.y as i32) + OFFSETS_AROUND_Y.iter().max().unwrap_or(&0)) as u32 + 1,
+        arguments.z,
+    );
+
+    // Fetch GeoRSS
+    let url = getter::replace_url_waz(getter::WAZ, top, left, bottom, right);
+    let data = getter::get_geojson(&url, &user_agent);
+
+    // TODO Create list of promises for each URL
+
+    // Create URL and initiate connection
+    let base_url = getter::replace_url(
+        getter::find_url("Google"),
+        arguments.x,
+        arguments.y,
+        arguments.z,
+    );
+    let base = getter::get_tile(&base_url, &user_agent);
+
+    // Current time
+    let now = chrono::Utc::now();
+    // Verbose
+    println!(
+        "[{}] - <<< - {} - {}",
+        now.format("%y-%m-%d %T").to_string(),
+        addr,
+        user_agent
+    );
+
+    /* TODO
+     * Wait for all the layers to download and splice them together
+     * Use the empty one first
+     */
+
+    // Create our blank canvas
+    // Sizes
+    let image_width = cross::TILE_SIZE * OFFSETS_AROUND_X.len();
+    let image_height = cross::TILE_SIZE * OFFSETS_AROUND_Y.len();
+    // Create
+    let mut canvas: RgbaImage = ImageBuffer::new(image_width as u32, image_height as u32);
+
+    // Create local list of alerts
+    let mut tidy_alerts: Vec<Alert> = Vec::new();
+
+    // Get the data
+    let json = data.await.unwrap();
+
+    // Iterate alerts
+    if let Some(alerts) = json["alerts"].as_array() {
+        for alert in alerts {
+            // Get the icon reference
+            let icon_reference = cross::find_alert_asset(
+                alert["type"].as_str().unwrap(),
+                alert["subtype"].as_str().unwrap(),
+            );
+            // Check if found icon
+            if icon_reference.is_none() {
+                continue;
+            }
+            // Create alert
+            let item_alert = Alert {
+                icon: icon_reference.unwrap(),
+                lat: alert["location"]["y"].as_f64().unwrap(),
+                lon: alert["location"]["x"].as_f64().unwrap(),
+            };
+
+            // Add to the vector
+            tidy_alerts.push(item_alert);
+        }
+    }
+
+    // Sort vector
+    tidy_alerts.sort_by(|before, after| {
+        if before.lat == after.lat {
+            before.lon.partial_cmp(&after.lon).unwrap()
+        } else {
+            before.lat.partial_cmp(&after.lat).unwrap()
+        }
+    });
+
+    // Add the alerts to the canvas
+    for alert in tidy_alerts {
+        // Translate the coordinates
+        let (confined_x, confined_y) = utils::coordinates_confine(
+            alert.lat,
+            alert.lon,
+            top,
+            left,
+            bottom,
+            right,
+            image_width as u32,
+            image_height as u32,
+        );
+
+        // Load icon
+        let current_icon = image::load_from_memory(alert.icon).unwrap();
+        let (width, height) = current_icon.dimensions();
+
+        // Fix edges
+        let (edge_x, edge_y) = utils::translate_edge(
+            width,
+            height,
+            confined_x,
+            confined_y,
+            cross::ICON_RATIO_X,
+            cross::ICON_RATIO_Y,
+        );
+
+        // Overlay it
+        imageops::overlay(&mut canvas, &current_icon, edge_x as i64, edge_y as i64);
+    }
+
+    // Crop to selection
+    let crop_x = OFFSETS_AROUND_X
+        .iter()
+        .position(|&each| each == 0)
+        .unwrap_or(0)
+        * cross::TILE_SIZE;
+    let crop_y = OFFSETS_AROUND_Y
+        .iter()
+        .position(|&each| each == 0)
+        .unwrap_or(0)
+        * cross::TILE_SIZE;
+    let crop = imageops::crop(
+        &mut canvas,
+        crop_x as u32,
+        crop_y as u32,
+        cross::TILE_SIZE as u32,
+        cross::TILE_SIZE as u32,
+    )
+    .to_image();
+
+    // Create final images
+    let mut final_image = DynamicImage::new(
+        cross::TILE_SIZE as u32,
+        cross::TILE_SIZE as u32,
+        ColorType::Rgba8,
+    );
+
+    // Base
+    let google = image::load_from_memory(&base.await.unwrap()).unwrap();
+
+    // Add them all
+    imageops::overlay(&mut final_image, &google, 0, 0);
+    imageops::overlay(&mut final_image, &crop, 0, 0);
+
+    // Buffer
+    let mut buffer = BufWriter::new(Cursor::new(Vec::new()));
+    final_image.write_to(&mut buffer, ImageFormat::Png).unwrap();
+    let bytes: Vec<u8> = buffer.into_inner().unwrap().into_inner();
+
+    // Response
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::SERVER, NAME)
+        .header(header::CONTENT_TYPE, "image/png")
+        .body(Body::from(bytes))
+        .unwrap()
+}
