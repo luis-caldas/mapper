@@ -19,11 +19,14 @@ use axum::{
 use axum_extra::{headers::UserAgent, TypedHeader};
 // Data
 use serde::Deserialize;
+// Image
+use image::{
+    imageops, ColorType, DynamicImage, GenericImageView, ImageBuffer, ImageFormat, RgbaImage,
+};
 // Standard
+use std::collections::HashMap;
 use std::io::{BufWriter, Cursor};
 use std::net::{Ipv4Addr, SocketAddr};
-// Image
-use image::{imageops, ColorType, DynamicImage, GenericImageView, ImageBuffer, ImageFormat, RgbaImage};
 
 // Utilities
 mod cross;
@@ -35,13 +38,11 @@ mod utils;
  *************/
 
 // Address
-const ADDRESS: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+const ADDRESS: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const PORT: u16 = 8080;
 const NAME: &str = "mapper";
 
-// Offsets around tile
-const OFFSETS_AROUND_X: [i32; 3] = [-1, 0, 1];
-const OFFSETS_AROUND_Y: [i32; 3] = [-1, 0, 1];
+const STRFTIME: &str = "%y-%m-%d %T";
 
 /**************
  * Structures *
@@ -52,6 +53,12 @@ struct Alert<'together> {
     lat: f64,
     lon: f64,
 }
+
+/*********
+ * Cache *
+ *********/
+
+// static mut cloud: HashMap<&str, Vec<Alert>>;
 
 /********
  * Main *
@@ -103,13 +110,13 @@ async fn default(
 
     // Calculate Coordinates
     let (top, left) = utils::xyz_to_coordinate(
-        ((arguments.x as i32) + OFFSETS_AROUND_X.iter().min().unwrap_or(&0)) as u32,
-        ((arguments.y as i32) + OFFSETS_AROUND_Y.iter().min().unwrap_or(&0)) as u32,
+        ((arguments.x as i32) + getter::WAZ_PAD_X.iter().min().unwrap_or(&0)) as u32,
+        ((arguments.y as i32) + getter::WAZ_PAD_Y.iter().min().unwrap_or(&0)) as u32,
         arguments.z,
     );
     let (bottom, right) = utils::xyz_to_coordinate(
-        ((arguments.x as i32) + OFFSETS_AROUND_X.iter().max().unwrap_or(&0)) as u32 + 1,
-        ((arguments.y as i32) + OFFSETS_AROUND_Y.iter().max().unwrap_or(&0)) as u32 + 1,
+        ((arguments.x as i32) + getter::WAZ_PAD_X.iter().max().unwrap_or(&0)) as u32 + 1,
+        ((arguments.y as i32) + getter::WAZ_PAD_Y.iter().max().unwrap_or(&0)) as u32 + 1,
         arguments.z,
     );
 
@@ -117,23 +124,15 @@ async fn default(
     let url = getter::replace_url_waz(getter::WAZ, top, left, bottom, right);
     let data = getter::get_geojson(&url, &user_agent);
 
-    // TODO Create list of promises for each URL
-
-    // Create URL and initiate connection
-    let base_url = getter::replace_url(
-        getter::find_url("Google"),
-        arguments.x,
-        arguments.y,
-        arguments.z,
-    );
-    let base = getter::get_tile(&base_url, &user_agent);
+    // Start to get all tiles
+    let tiles = getter::get_tiles(&user_agent, arguments.x, arguments.y, arguments.z);
 
     // Current time
     let now = chrono::Utc::now();
     // Verbose
     println!(
         "[{}] - <<< - {} - {}",
-        now.format("%y-%m-%d %T").to_string(),
+        now.format(STRFTIME).to_string(),
         addr,
         user_agent
     );
@@ -145,8 +144,8 @@ async fn default(
 
     // Create our blank canvas
     // Sizes
-    let image_width = cross::TILE_SIZE * OFFSETS_AROUND_X.len();
-    let image_height = cross::TILE_SIZE * OFFSETS_AROUND_Y.len();
+    let image_width = cross::TILE_SIZE * getter::WAZ_PAD_X.len();
+    let image_height = cross::TILE_SIZE * getter::WAZ_PAD_Y.len();
     // Create
     let mut canvas: RgbaImage = ImageBuffer::new(image_width as u32, image_height as u32);
 
@@ -158,19 +157,15 @@ async fn default(
 
     // Iterate alerts
     if let Some(alerts) = json["alerts"].as_array() {
-        for alert in alerts {
+        for alert in alerts.iter() {
             // Get the icon reference
             let icon_reference = cross::find_alert_asset(
                 alert["type"].as_str().unwrap(),
                 alert["subtype"].as_str().unwrap(),
             );
-            // Check if found icon
-            if icon_reference.is_none() {
-                continue;
-            }
             // Create alert
             let item_alert = Alert {
-                icon: icon_reference.unwrap(),
+                icon: icon_reference,
                 lat: alert["location"]["y"].as_f64().unwrap(),
                 lon: alert["location"]["x"].as_f64().unwrap(),
             };
@@ -190,7 +185,7 @@ async fn default(
     });
 
     // Add the alerts to the canvas
-    for alert in tidy_alerts {
+    for alert in tidy_alerts.iter() {
         // Translate the coordinates
         let (confined_x, confined_y) = utils::coordinates_confine(
             alert.lat,
@@ -222,12 +217,12 @@ async fn default(
     }
 
     // Crop to selection
-    let crop_x = OFFSETS_AROUND_X
+    let crop_x = getter::WAZ_PAD_X
         .iter()
         .position(|&each| each == 0)
         .unwrap_or(0)
         * cross::TILE_SIZE;
-    let crop_y = OFFSETS_AROUND_Y
+    let crop_y = getter::WAZ_PAD_Y
         .iter()
         .position(|&each| each == 0)
         .unwrap_or(0)
@@ -248,11 +243,17 @@ async fn default(
         ColorType::Rgba8,
     );
 
-    // Base
-    let google = image::load_from_memory(&base.await.unwrap()).unwrap();
+    // Add each tile
+    for tile in tiles.await.iter() {
+        imageops::overlay(
+            &mut final_image,
+            &image::load_from_memory(&tile).unwrap(),
+            0,
+            0,
+        );
+    }
 
-    // Add them all
-    imageops::overlay(&mut final_image, &google, 0, 0);
+    // Add copped image
     imageops::overlay(&mut final_image, &crop, 0, 0);
 
     // Buffer
