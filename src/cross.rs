@@ -15,6 +15,7 @@ pub const ICON_RATIO_Y: f64 = 1.0;
 
 // Default
 const DEFAULT: &str = "DEFAULT";
+const DEFAULT_INDEX: usize = 0;
 
 // Hazard
 const ALERT_TYPE_HAZARD: &[&str; 8] = &[
@@ -84,13 +85,13 @@ pub fn find_alert_asset<'start, 'end>(main_type: &'start str, sub_type: &'start 
     let found_main_type = ALERTS
         .iter()
         .position(|&each| each == main_type)
-        .unwrap_or(0);
+        .unwrap_or(DEFAULT_INDEX);
 
     // Otherwise we have a chance to narrow down
     let found_sub_type = SUB_ALERTS[found_main_type]
         .iter()
         .position(|&each| each == sub_type)
-        .unwrap_or(0);
+        .unwrap_or(DEFAULT_INDEX);
 
     SUB_ALERTS_ASSETS[found_main_type][found_sub_type]
 }

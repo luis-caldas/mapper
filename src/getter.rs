@@ -11,6 +11,14 @@ pub const LINKS: [&str; 1] =
 // WAZ
 pub const WAZ: &str = "https://embed.waze.com/live-map/api/georss?env=row&types=alerts&top={top}&bottom={bottom}&left={left}&right={right}";
 
+// Offsets around tile
+pub const WAZ_PAD_X: [i32; 3] = [-1, 0, 1];
+pub const WAZ_PAD_Y: [i32; 3] = [-1, 0, 1];
+
+// Cache
+pub const CACHE_ZOOM: u16 = 10;  // XYZ - Z
+pub const CACHE_TTL: u16 = 60;  // Seconds
+
 /*************
  * Functions *
  *************/
@@ -33,26 +41,28 @@ pub fn replace_url(input: &str, x: u32, y: u32, z: u16) -> String {
 }
 
 pub fn find_url(name: &str) -> &str {
-    let found = LIST.iter().position(|&each| each == name);
+    // Find it
+    let found = LIST.iter().position(|&each| each == name).unwrap_or(DEFAULT);
 
-    // Not found
-    if found.is_none() {
-        return LINKS[DEFAULT];
-    }
-
-    LINKS[found.unwrap()]
+    LINKS[found]
 }
 
 pub async fn get_tile(url: &str, user_agent: &str) -> Result<Vec<u8>, reqwest::Error> {
     // Client
     let client = reqwest::Client::builder().user_agent(user_agent).build()?;
 
-    // TODO Add Cache?
-
+    // Response
     let response = client.get(url).send().await?;
     let bytes = response.bytes().await?;
 
-    // TODO Verbose
+    // Verbose
+    let now = chrono::Utc::now();
+    println!(
+        "[{}] - >>> - {} - {}",
+        now.format(crate::STRFTIME).to_string(),
+        url,
+        user_agent
+    );
 
     Ok(bytes.to_vec())
 }
@@ -61,12 +71,18 @@ pub async fn get_geojson(url: &str, user_agent: &str) -> Result<serde_json::Valu
     // Client
     let client = reqwest::Client::builder().user_agent(user_agent).build()?;
 
-    // TODO Add Cache?
-
+    // Response
     let response = client.get(url).send().await?;
     let json = response.json::<serde_json::Value>().await?;
 
-    // TODO Verbose
+    // Verbose
+    let now = chrono::Utc::now();
+    println!(
+        "[{}] - >>> - {} - {}",
+        now.format(crate::STRFTIME).to_string(),
+        url,
+        user_agent
+    );
 
     Ok(json)
 }
