@@ -16,14 +16,6 @@ const LINKS: [&str; 1] = ["https://mts0.google.com/vt/lyrs=h,traffic&x={x}&y={y}
 // WAZ
 const WAZ: &str = "https://embed.waze.com/live-map/api/georss?env=row&types=alerts&top={top}&bottom={bottom}&left={left}&right={right}";
 
-// Offsets around tile
-pub const WAZ_OFFSET: u32 = 1;
-pub const WAZ_OFFSET_LENGTH: u32 = (WAZ_OFFSET * 2) + 1;
-
-// Cache
-pub const CACHE_ZOOM: u16 = 10; // XYZ - Z
-pub const CACHE_TTL: u16 = 60; // Seconds
-
 // Locators
 pub const IN_ALERTS: &str = "alerts";
 pub const IN_TYPE: &str = "type";

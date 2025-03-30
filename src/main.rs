@@ -112,25 +112,21 @@ async fn default(
     // let cache_area = zoom_scale(getter::CACHE_ZOOM, &given);
 
     // Grow search area so we have left overs around
-    let spacer = utils::grow_pad(getter::WAZ_OFFSET, &given);
+    let spacer = utils::grow_pad(utils::TILE_OFFSET, &given);
 
-    // Fetch GeoJSON
+    // Start async fetchers
     let data = getter::get_jsons(&user_agent, &spacer);
-
-    // Start to get all normal tiles
     let tiles = getter::get_tiles(&user_agent, &given);
 
-    // Current time
+    // Verbose
     print::print_in(&addr.to_string(), &user_agent);
 
     // Create our blank canvas
-    // Sizes
-    let image_size = utils::Raster {
-        x: getter::WAZ_OFFSET_LENGTH * cross::TILE_SIZE,
-        y: getter::WAZ_OFFSET_LENGTH * cross::TILE_SIZE,
+    let canvas_size = utils::Raster {
+        x: utils::TILE_INFLATED,
+        y: utils::TILE_INFLATED,
     };
-    // Create
-    let mut canvas: RgbaImage = ImageBuffer::new(image_size.x, image_size.y);
+    let mut canvas: RgbaImage = ImageBuffer::new(canvas_size.x, canvas_size.y);
 
     // Create local list of alerts
     let mut tidy: Vec<Alert> = Vec::new();
@@ -184,7 +180,7 @@ async fn default(
     // Add the alerts to the canvas
     for alert in tidy.iter() {
         // Translate the coordinates
-        let confined = utils::coordinates_confine(&alert.position, &spacer, &image_size);
+        let confined = utils::coordinates_confine(&alert.position, &spacer, &canvas_size);
 
         // Load icon
         let icon_current = image::load_from_memory(alert.icon).unwrap();
@@ -198,30 +194,25 @@ async fn default(
         let edges = utils::translate_edge(
             &icon_dimensions,
             &confined,
-            cross::ICON_RATIO_X,
-            cross::ICON_RATIO_Y,
+            &cross::ICON_POINT,
         );
 
         // Overlay it
         imageops::overlay(&mut canvas, &icon_current, edges.x as i64, edges.y as i64);
     }
 
-    // Crop to selection
-    let crop_to = utils::Raster {
-        x: getter::WAZ_OFFSET * cross::TILE_SIZE,
-        y: getter::WAZ_OFFSET * cross::TILE_SIZE,
-    };
+    // Crop to real tile
     let crop = imageops::crop(
         &mut canvas,
-        crop_to.x,
-        crop_to.y,
-        cross::TILE_SIZE,
-        cross::TILE_SIZE,
+        utils::TILE_ORIGINAL_START,
+        utils::TILE_ORIGINAL_START,
+        utils::TILE_SIZE,
+        utils::TILE_SIZE,
     )
     .to_image();
 
     // Create final images
-    let mut final_image = DynamicImage::new(cross::TILE_SIZE, cross::TILE_SIZE, ColorType::Rgba8);
+    let mut final_image = DynamicImage::new(utils::TILE_SIZE, utils::TILE_SIZE, ColorType::Rgba8);
 
     // Add each tile
     for tile in tiles.await.iter() {

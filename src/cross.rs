@@ -1,13 +1,18 @@
+/************
+ * Includes *
+ ************/
+
+use crate::utils;
+
 /*************
  * Variables *
  *************/
 
-// Tiling
-pub const TILE_SIZE: u32 = 256; // Pixels
-
 // Icons
-pub const ICON_RATIO_X: f64 = 0.5;
-pub const ICON_RATIO_Y: f64 = 1.0;
+pub const ICON_POINT: utils::Ratios = utils::Ratios {
+    x: 0.5,
+    y: 1.0,
+};
 
 /**********
  * Macros *

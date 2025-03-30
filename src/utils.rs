@@ -29,6 +29,32 @@ pub struct Raster {
     pub y: u32,
 }
 
+pub struct Ratios {
+    pub x: f64,
+    pub y: f64,
+}
+
+/*************
+ * Variables *
+ *************/
+
+// Tiling
+pub const TILE_SIZE: u32 = 256; // Pixels
+
+// Offsets around tile
+pub const TILE_OFFSET: u32 = 1;
+pub const TILE_OFFSET_LENGTH: u32 = (TILE_OFFSET * 2) + 1;
+
+// Tile full inflated length
+pub const TILE_INFLATED: u32 = TILE_OFFSET_LENGTH * TILE_SIZE;
+
+// Start of original tile in an offset situation
+pub const TILE_ORIGINAL_START: u32 = TILE_OFFSET * TILE_SIZE;
+
+// Cache
+pub const CACHE_ZOOM: u16 = 10; // XYZ - Z
+pub const CACHE_TTL: u16 = 60; // Seconds
+
 /*************
  * Functions *
  *************/
@@ -95,12 +121,11 @@ pub fn coordinates_confine(item: &Coordinate, confine: &Plot, dest: &Raster) -> 
 pub fn translate_edge(
     dimensions: &Raster,
     position: &Raster,
-    ratio_x: f64,
-    ratio_y: f64,
+    ratio: &Ratios,
 ) -> Raster {
     // Offsets
-    let offset_x: u32 = (f64::from(dimensions.x) * ratio_x) as u32;
-    let offset_y: u32 = (f64::from(dimensions.y) * ratio_y) as u32;
+    let offset_x: u32 = (f64::from(dimensions.x) * ratio.x) as u32;
+    let offset_y: u32 = (f64::from(dimensions.y) * ratio.y) as u32;
 
     // Translate
     let translated_x: u32 = if position.x > offset_x {
