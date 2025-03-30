@@ -1,19 +1,3 @@
-/************
- * Includes *
- ************/
-
-use crate::utils;
-
-/*************
- * Variables *
- *************/
-
-// Icons
-pub const ICON_POINT: utils::Ratios = utils::Ratios {
-    x: 0.5,
-    y: 1.0,
-};
-
 /**********
  * Macros *
  **********/

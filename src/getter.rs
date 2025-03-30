@@ -17,12 +17,22 @@ const LINKS: [&str; 1] = ["https://mts0.google.com/vt/lyrs=h,traffic&x={x}&y={y}
 const WAZ: &str = "https://embed.waze.com/live-map/api/georss?env=row&types=alerts&top={top}&bottom={bottom}&left={left}&right={right}";
 
 // Locators
-pub const IN_ALERTS: &str = "alerts";
-pub const IN_TYPE: &str = "type";
-pub const IN_SUBTYPE: &str = "subtype";
-pub const IN_LOCATION: &str = "location";
-pub const IN_LOCATION_X: &str = "x";
-pub const IN_LOCATION_Y: &str = "y";
+const IN_ALERTS: &str = "alerts";
+const IN_TYPE: &str = "type";
+const IN_SUBTYPE: &str = "subtype";
+const IN_LOCATION: &str = "location";
+const IN_LOCATION_X: &str = "x";
+const IN_LOCATION_Y: &str = "y";
+
+/***********
+ * Structs *
+ ***********/
+
+pub struct Alert {
+    pub icon: String,
+    pub subicon: String,
+    pub position: utils::Coordinate,
+}
 
 /*************
  * Functions *
@@ -108,4 +118,52 @@ pub async fn get_json(url: &str, user_agent: &str) -> Result<serde_json::Value, 
     let json = response.json::<serde_json::Value>().await?;
 
     Ok(json)
+}
+
+pub fn alerts_extract(json: &serde_json::Value) -> Vec<Alert> {
+
+    // Create local list of alerts
+    let mut tidy: Vec<Alert> = Vec::new();
+
+    // Iterate alerts
+    if let Some(alerts) = json[IN_ALERTS].as_array() {
+        for alert in alerts.iter() {
+            // Create alert
+            let item_alert = Alert {
+                icon: alert[IN_TYPE].as_str().unwrap().to_string(),
+                subicon: alert[IN_SUBTYPE].as_str().unwrap().to_string(),
+                position: utils::Coordinate {
+                    lat: alert[IN_LOCATION][IN_LOCATION_Y]
+                        .as_f64()
+                        .unwrap(),
+                    lon: alert[IN_LOCATION][IN_LOCATION_X]
+                        .as_f64()
+                        .unwrap(),
+                },
+            };
+
+            // Add to the vector
+            tidy.push(item_alert);
+        }
+    }
+
+    // Sort vector
+    tidy.sort_by(|after, before| {
+        if before.position.lat == after.position.lat {
+            before
+                .position
+                .lon
+                .partial_cmp(&after.position.lon)
+                .unwrap()
+        } else {
+            before
+                .position
+                .lat
+                .partial_cmp(&after.position.lat)
+                .unwrap()
+        }
+    });
+
+    tidy
+
 }

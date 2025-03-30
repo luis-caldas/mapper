@@ -56,11 +56,6 @@ struct Arguments {
     z: u16,
 }
 
-struct Alert<'together> {
-    icon: &'together [u8],
-    position: utils::Coordinate,
-}
-
 /********
  * Main *
  ********/
@@ -128,73 +123,26 @@ async fn default(
     };
     let mut canvas: RgbaImage = ImageBuffer::new(canvas_size.x, canvas_size.y);
 
-    // Create local list of alerts
-    let mut tidy: Vec<Alert> = Vec::new();
-
-    // Wait
-    let json = data.await;
-
-    // Iterate alerts
-    if let Some(alerts) = json[getter::IN_ALERTS].as_array() {
-        for alert in alerts.iter() {
-            // Get the icon reference
-            let icon_reference = cross::find_alert_asset(
-                alert[getter::IN_TYPE].as_str().unwrap(),
-                alert[getter::IN_SUBTYPE].as_str().unwrap(),
-            );
-            // Create alert
-            let item_alert = Alert {
-                icon: icon_reference,
-                position: utils::Coordinate {
-                    lat: alert[getter::IN_LOCATION][getter::IN_LOCATION_Y]
-                        .as_f64()
-                        .unwrap(),
-                    lon: alert[getter::IN_LOCATION][getter::IN_LOCATION_X]
-                        .as_f64()
-                        .unwrap(),
-                },
-            };
-
-            // Add to the vector
-            tidy.push(item_alert);
-        }
-    }
-
-    // Sort vector
-    tidy.sort_by(|after, before| {
-        if before.position.lat == after.position.lat {
-            before
-                .position
-                .lon
-                .partial_cmp(&after.position.lon)
-                .unwrap()
-        } else {
-            before
-                .position
-                .lat
-                .partial_cmp(&after.position.lat)
-                .unwrap()
-        }
-    });
+    // Extract the alerts from the list
+    let alerts = getter::alerts_extract(&data.await);
 
     // Add the alerts to the canvas
-    for alert in tidy.iter() {
+    for alert in alerts.iter() {
         // Translate the coordinates
         let confined = utils::coordinates_confine(&alert.position, &spacer, &canvas_size);
 
         // Load icon
-        let icon_current = image::load_from_memory(alert.icon).unwrap();
-        let (icon_width, icon_height) = icon_current.dimensions();
+        let icon_bytes = cross::find_alert_asset(&alert.icon, &alert.subicon);
+        let icon_current = image::load_from_memory(icon_bytes).unwrap();
         let icon_dimensions = utils::Raster {
-            x: icon_width,
-            y: icon_height,
+            x: icon_current.width(),
+            y: icon_current.height(),
         };
 
         // Fix edges
         let edges = utils::translate_edge(
             &icon_dimensions,
             &confined,
-            &cross::ICON_POINT,
         );
 
         // Overlay it

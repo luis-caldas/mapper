@@ -27,7 +27,7 @@ pub fn print_in(addr: &str, user_agent: &str) -> () {
 
     let now = chrono::Utc::now();
     println!(
-        "[{}] - {} - {} - {}",
+        "[{}] {} {} - {}",
         now.format(STRFTIME).to_string(),
         PRINT_COMING.green(),
         addr,
