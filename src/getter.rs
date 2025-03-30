@@ -3,8 +3,8 @@
  ***********/
 
 // Mine
-use crate::utils;
 use crate::print;
+use crate::utils;
 
 /*************
  * Variables *
@@ -121,7 +121,6 @@ pub async fn get_json(url: &str, user_agent: &str) -> Result<serde_json::Value, 
 }
 
 pub fn alerts_extract(json: &serde_json::Value) -> Vec<Alert> {
-
     // Create local list of alerts
     let mut tidy: Vec<Alert> = Vec::new();
 
@@ -133,12 +132,8 @@ pub fn alerts_extract(json: &serde_json::Value) -> Vec<Alert> {
                 icon: alert[IN_TYPE].as_str().unwrap().to_string(),
                 subicon: alert[IN_SUBTYPE].as_str().unwrap().to_string(),
                 position: utils::Coordinate {
-                    lat: alert[IN_LOCATION][IN_LOCATION_Y]
-                        .as_f64()
-                        .unwrap(),
-                    lon: alert[IN_LOCATION][IN_LOCATION_X]
-                        .as_f64()
-                        .unwrap(),
+                    lat: alert[IN_LOCATION][IN_LOCATION_Y].as_f64().unwrap(),
+                    lon: alert[IN_LOCATION][IN_LOCATION_X].as_f64().unwrap(),
                 },
             };
 
@@ -165,5 +160,4 @@ pub fn alerts_extract(json: &serde_json::Value) -> Vec<Alert> {
     });
 
     tidy
-
 }

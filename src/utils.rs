@@ -52,10 +52,7 @@ pub const TILE_INFLATED: u32 = TILE_OFFSET_LENGTH * TILE_SIZE;
 pub const TILE_ORIGINAL_START: u32 = TILE_OFFSET * TILE_SIZE;
 
 // Location of the point on an icon
-const ICON_POINT: Ratios = Ratios {
-    x: 0.5,
-    y: 1.0,
-};
+const ICON_POINT: Ratios = Ratios { x: 0.5, y: 1.0 };
 
 // Cache
 pub const CACHE_ZOOM: u16 = 10; // XYZ - Z
@@ -124,10 +121,7 @@ pub fn coordinates_confine(item: &Coordinate, confine: &Plot, dest: &Raster) -> 
 }
 
 // Fix for images to represent a centre
-pub fn translate_edge(
-    dimensions: &Raster,
-    position: &Raster
-) -> Raster {
+pub fn translate_edge(dimensions: &Raster, position: &Raster) -> Raster {
     // Offsets
     let offset_x: u32 = (f64::from(dimensions.x) * ICON_POINT.x) as u32;
     let offset_y: u32 = (f64::from(dimensions.y) * ICON_POINT.y) as u32;

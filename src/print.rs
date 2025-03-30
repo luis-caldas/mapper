@@ -24,7 +24,6 @@ const PRINT_GOING: &str = ">>>";
  *************/
 
 pub fn print_in(addr: &str, user_agent: &str) -> () {
-
     let now = chrono::Utc::now();
     println!(
         "[{}] {} {} - {}",
@@ -33,11 +32,9 @@ pub fn print_in(addr: &str, user_agent: &str) -> () {
         addr,
         user_agent
     );
-
 }
 
 pub fn print_out_xyz(position: &utils::XYZ) -> () {
-
     let now = Utc::now();
     println!(
         "[{}] {} Tile - {}, {}, {}",
@@ -47,11 +44,9 @@ pub fn print_out_xyz(position: &utils::XYZ) -> () {
         position.y,
         position.z,
     );
-
 }
 
 pub fn print_out_plot(position: &utils::Plot) -> () {
-
     let now = Utc::now();
     println!(
         "[{}] {} JSON - {}, {}, {}, {}",
@@ -62,5 +57,4 @@ pub fn print_out_plot(position: &utils::Plot) -> () {
         position.bottom.lat,
         position.bottom.lon,
     );
-
 }
