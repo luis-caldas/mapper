@@ -3,7 +3,7 @@
  *************/
 
 // Tiling
-pub const TILE_SIZE: usize = 256; // Pixels
+pub const TILE_SIZE: u32 = 256; // Pixels
 
 // Icons
 pub const ICON_RATIO_X: f64 = 0.5;

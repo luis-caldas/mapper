@@ -23,10 +23,13 @@ use serde::Deserialize;
 use image::{
     imageops, ColorType, DynamicImage, GenericImageView, ImageBuffer, ImageFormat, RgbaImage,
 };
+// Color
+use colored::Colorize;
 // Standard
-use std::collections::HashMap;
 use std::io::{BufWriter, Cursor};
 use std::net::{Ipv4Addr, SocketAddr};
+// use std::collections::HashMap;
+// use std::sync::Mutex;
 
 // Utilities
 mod cross;
@@ -48,17 +51,24 @@ const STRFTIME: &str = "%y-%m-%d %T";
  * Structures *
  **************/
 
+// Query
+#[derive(Deserialize)]
+struct Arguments {
+    x: u32,
+    y: u32,
+    z: u16,
+}
+
 struct Alert<'together> {
     icon: &'together [u8],
-    lat: f64,
-    lon: f64,
+    position: utils::Coordinate,
 }
 
 /*********
  * Cache *
  *********/
 
-// static mut cloud: HashMap<&str, Vec<Alert>>;
+// static cloud: Option<&<HashMap<(u32, u32, u16), &HashMap<u64, &Vec<Alert>>>>>  = None;
 
 /********
  * Main *
@@ -91,65 +101,56 @@ async fn main() {
  * Handler *
  ***********/
 
-// Query
-#[derive(Deserialize)]
-struct Coordinates {
-    x: u32,
-    y: u32,
-    z: u16,
-}
-
 // Basic
 async fn default(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     TypedHeader(raw_agent): TypedHeader<UserAgent>,
-    arguments: Query<Coordinates>,
+    arguments: Query<Arguments>,
 ) -> Response {
     // User Agent
     let user_agent = raw_agent.to_string();
 
-    // Calculate Coordinates
-    let (top, left) = utils::xyz_to_coordinate(
-        ((arguments.x as i32) + getter::WAZ_PAD_X.iter().min().unwrap_or(&0)) as u32,
-        ((arguments.y as i32) + getter::WAZ_PAD_Y.iter().min().unwrap_or(&0)) as u32,
-        arguments.z,
-    );
-    let (bottom, right) = utils::xyz_to_coordinate(
-        ((arguments.x as i32) + getter::WAZ_PAD_X.iter().max().unwrap_or(&0)) as u32 + 1,
-        ((arguments.y as i32) + getter::WAZ_PAD_Y.iter().max().unwrap_or(&0)) as u32 + 1,
-        arguments.z,
-    );
+    // Convert inputs
+    let given = utils::XYZ {
+        x: arguments.x,
+        y: arguments.y,
+        z: arguments.z,
+    };
+
+    // Zoom out for a larger cached area
+    // let cache_area = zoom_scale(getter::CACHE_ZOOM, &given);
+
+    // Grow search area so we have left overs around
+    let spacer = utils::grow_pad(getter::WAZ_OFFSET, &given);
 
     // Fetch GeoJSON
-    let data = getter::get_jsons(&user_agent, top, left, bottom, right);
+    let data = getter::get_jsons(&user_agent, &spacer);
 
-    // Start to get all tiles
-    let tiles = getter::get_tiles(&user_agent, arguments.x, arguments.y, arguments.z);
+    // Start to get all normal tiles
+    let tiles = getter::get_tiles(&user_agent, &given);
 
     // Current time
     let now = chrono::Utc::now();
     // Verbose
     println!(
-        "[{}] - <<< - {} - {}",
+        "[{}] - {} - {} - {}",
         now.format(STRFTIME).to_string(),
+        getter::PRINT_COMING.green(),
         addr,
         user_agent
     );
 
-    /* TODO
-     * Wait for all the layers to download and splice them together
-     * Use the empty one first
-     */
-
     // Create our blank canvas
     // Sizes
-    let image_width = cross::TILE_SIZE * getter::WAZ_PAD_X.len();
-    let image_height = cross::TILE_SIZE * getter::WAZ_PAD_Y.len();
+    let image_size = utils::Raster {
+        x: getter::WAZ_OFFSET_LENGTH * cross::TILE_SIZE,
+        y: getter::WAZ_OFFSET_LENGTH * cross::TILE_SIZE,
+    };
     // Create
-    let mut canvas: RgbaImage = ImageBuffer::new(image_width as u32, image_height as u32);
+    let mut canvas: RgbaImage = ImageBuffer::new(image_size.x, image_size.y);
 
     // Create local list of alerts
-    let mut tidy_alerts: Vec<Alert> = Vec::new();
+    let mut tidy: Vec<Alert> = Vec::new();
 
     // Wait
     let json = data.await;
@@ -165,86 +166,79 @@ async fn default(
             // Create alert
             let item_alert = Alert {
                 icon: icon_reference,
-                lat: alert[getter::IN_LOCATION][getter::IN_LOCATION_Y]
-                    .as_f64()
-                    .unwrap(),
-                lon: alert[getter::IN_LOCATION][getter::IN_LOCATION_X]
-                    .as_f64()
-                    .unwrap(),
+                position: utils::Coordinate {
+                    lat: alert[getter::IN_LOCATION][getter::IN_LOCATION_Y]
+                        .as_f64()
+                        .unwrap(),
+                    lon: alert[getter::IN_LOCATION][getter::IN_LOCATION_X]
+                        .as_f64()
+                        .unwrap(),
+                },
             };
 
             // Add to the vector
-            tidy_alerts.push(item_alert);
+            tidy.push(item_alert);
         }
     }
 
     // Sort vector
-    tidy_alerts.sort_by(|after, before| {
-        if before.lat == after.lat {
-            before.lon.partial_cmp(&after.lon).unwrap()
+    tidy.sort_by(|after, before| {
+        if before.position.lat == after.position.lat {
+            before
+                .position
+                .lon
+                .partial_cmp(&after.position.lon)
+                .unwrap()
         } else {
-            before.lat.partial_cmp(&after.lat).unwrap()
+            before
+                .position
+                .lat
+                .partial_cmp(&after.position.lat)
+                .unwrap()
         }
     });
 
     // Add the alerts to the canvas
-    for alert in tidy_alerts.iter() {
+    for alert in tidy.iter() {
         // Translate the coordinates
-        let (confined_x, confined_y) = utils::coordinates_confine(
-            alert.lat,
-            alert.lon,
-            top,
-            left,
-            bottom,
-            right,
-            image_width as u32,
-            image_height as u32,
-        );
+        let confined = utils::coordinates_confine(&alert.position, &spacer, &image_size);
 
         // Load icon
-        let current_icon = image::load_from_memory(alert.icon).unwrap();
-        let (width, height) = current_icon.dimensions();
+        let icon_current = image::load_from_memory(alert.icon).unwrap();
+        let (icon_width, icon_height) = icon_current.dimensions();
+        let icon_dimensions = utils::Raster {
+            x: icon_width,
+            y: icon_height,
+        };
 
         // Fix edges
-        let (edge_x, edge_y) = utils::translate_edge(
-            width,
-            height,
-            confined_x,
-            confined_y,
+        let edges = utils::translate_edge(
+            &icon_dimensions,
+            &confined,
             cross::ICON_RATIO_X,
             cross::ICON_RATIO_Y,
         );
 
         // Overlay it
-        imageops::overlay(&mut canvas, &current_icon, edge_x as i64, edge_y as i64);
+        imageops::overlay(&mut canvas, &icon_current, edges.x as i64, edges.y as i64);
     }
 
     // Crop to selection
-    let crop_x = getter::WAZ_PAD_X
-        .iter()
-        .position(|&each| each == 0)
-        .unwrap_or(0)
-        * cross::TILE_SIZE;
-    let crop_y = getter::WAZ_PAD_Y
-        .iter()
-        .position(|&each| each == 0)
-        .unwrap_or(0)
-        * cross::TILE_SIZE;
+    let crop_to = utils::Raster {
+        x: getter::WAZ_OFFSET * cross::TILE_SIZE,
+        y: getter::WAZ_OFFSET * cross::TILE_SIZE,
+    };
     let crop = imageops::crop(
         &mut canvas,
-        crop_x as u32,
-        crop_y as u32,
-        cross::TILE_SIZE as u32,
-        cross::TILE_SIZE as u32,
+        crop_to.x,
+        crop_to.y,
+        cross::TILE_SIZE,
+        cross::TILE_SIZE,
     )
     .to_image();
 
     // Create final images
-    let mut final_image = DynamicImage::new(
-        cross::TILE_SIZE as u32,
-        cross::TILE_SIZE as u32,
-        ColorType::Rgba8,
-    );
+    let mut final_image = DynamicImage::new(cross::TILE_SIZE, cross::TILE_SIZE, ColorType::Rgba8);
 
     // Add each tile
     for tile in tiles.await.iter() {
