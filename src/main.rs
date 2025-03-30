@@ -64,12 +64,6 @@ struct Alert<'together> {
     position: utils::Coordinate,
 }
 
-/*********
- * Cache *
- *********/
-
-// static cloud: Option<&<HashMap<(u32, u32, u16), &HashMap<u64, &Vec<Alert>>>>>  = None;
-
 /********
  * Main *
  ********/
