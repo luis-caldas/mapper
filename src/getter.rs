@@ -2,15 +2,13 @@
  * Imports *
  ***********/
 
+// Mine
 use crate::utils;
+use crate::print;
 
 /*************
  * Variables *
  *************/
-
-// Verbose
-pub const PRINT_COMING: &str = "<<<";
-pub const PRINT_GOING: &str = ">>>";
 
 // XYZ Maps
 const LINKS: [&str; 1] = ["https://mts0.google.com/vt/lyrs=h,traffic&x={x}&y={y}&z={z}&style=3"];
@@ -67,15 +65,7 @@ pub async fn get_tiles(user_agent: &str, position: &utils::XYZ) -> Vec<Vec<u8>> 
     }
 
     // Verbose
-    let now = chrono::Utc::now();
-    println!(
-        "[{}] - {} - Tile - {}, {}, {}",
-        now.format(crate::STRFTIME).to_string(),
-        colored::Colorize::red(PRINT_GOING),
-        position.x,
-        position.y,
-        position.z,
-    );
+    print::print_out_xyz(&position);
 
     // Tiles
     let mut tiles = Vec::new();
@@ -108,16 +98,7 @@ pub async fn get_jsons(user_agent: &str, position: &utils::Plot) -> serde_json::
     let promise = get_json(&url, &user_agent);
 
     // Verbose
-    let now = chrono::Utc::now();
-    println!(
-        "[{}] - {} - Tile - {}, {}, {}, {}",
-        now.format(crate::STRFTIME).to_string(),
-        colored::Colorize::red(PRINT_GOING),
-        position.top.lat,
-        position.top.lon,
-        position.bottom.lat,
-        position.bottom.lon,
-    );
+    print::print_out_plot(&position);
 
     // Data
     promise.await.unwrap_or(serde_json::json!({}))

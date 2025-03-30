@@ -15,11 +15,9 @@ pub const ICON_RATIO_Y: f64 = 1.0;
 
 // Get asset
 macro_rules! bytes_asset {
-    ($name:literal) => (
-        include_bytes!(
-            concat!("icons/", $name, ".png")
-        )
-    )
+    ($name:literal) => {
+        include_bytes!(concat!("icons/", $name, ".png"))
+    };
 }
 
 /**************

@@ -23,8 +23,6 @@ use serde::Deserialize;
 use image::{
     imageops, ColorType, DynamicImage, GenericImageView, ImageBuffer, ImageFormat, RgbaImage,
 };
-// Color
-use colored::Colorize;
 // Standard
 use std::io::{BufWriter, Cursor};
 use std::net::{Ipv4Addr, SocketAddr};
@@ -35,6 +33,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 mod cross;
 mod getter;
 mod utils;
+mod print;
 
 /*************
  * Constants *
@@ -44,8 +43,6 @@ mod utils;
 const ADDRESS: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 const PORT: u16 = 8080;
 const NAME: &str = "mapper";
-
-const STRFTIME: &str = "%y-%m-%d %T";
 
 /**************
  * Structures *
@@ -124,15 +121,7 @@ async fn default(
     let tiles = getter::get_tiles(&user_agent, &given);
 
     // Current time
-    let now = chrono::Utc::now();
-    // Verbose
-    println!(
-        "[{}] - {} - {} - {}",
-        now.format(STRFTIME).to_string(),
-        getter::PRINT_COMING.green(),
-        addr,
-        user_agent
-    );
+    print::print_in(&addr.to_string(), &user_agent);
 
     // Create our blank canvas
     // Sizes
