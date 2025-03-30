@@ -9,6 +9,19 @@ pub const TILE_SIZE: u32 = 256; // Pixels
 pub const ICON_RATIO_X: f64 = 0.5;
 pub const ICON_RATIO_Y: f64 = 1.0;
 
+/**********
+ * Macros *
+ **********/
+
+// Get asset
+macro_rules! bytes_asset {
+    ($name:literal) => (
+        include_bytes!(
+            concat!("icons/", $name, ".png")
+        )
+    )
+}
+
 /**************
  * Assignment *
  **************/
@@ -29,35 +42,35 @@ const ALERT_TYPE_HAZARD: &[&str; 8] = &[
     "HAZARD_WEATHER_FOG",
 ];
 const ALERT_TYPE_HAZARD_ASSETS: &[&[u8]; 8] = &[
-    include_bytes!("../assets/hazard.png"),
-    include_bytes!("../assets/pothole.png"),
-    include_bytes!("../assets/construction.png"),
-    include_bytes!("../assets/ice.png"),
-    include_bytes!("../assets/light.png"),
-    include_bytes!("../assets/object.png"),
-    include_bytes!("../assets/vehicle-stopped.png"),
-    include_bytes!("../assets/fog.png"),
+    bytes_asset!("hazard"),
+    bytes_asset!("pothole"),
+    bytes_asset!("construction"),
+    bytes_asset!("ice"),
+    bytes_asset!("light"),
+    bytes_asset!("object"),
+    bytes_asset!("vehicle-stopped"),
+    bytes_asset!("fog"),
 ];
 
 // Jam
 const ALERT_TYPE_JAM: &[&str; 3] = &[DEFAULT, "JAM_HEAVY_TRAFFIC", "JAM_STAND_STILL_TRAFFIC"];
 const ALERT_TYPE_JAM_ASSETS: &[&[u8]; 3] = &[
-    include_bytes!("../assets/traffic-low.png"),
-    include_bytes!("../assets/traffic-low.png"),
-    include_bytes!("../assets/traffic-high.png"),
+    bytes_asset!("traffic-low"),
+    bytes_asset!("traffic-low"),
+    bytes_asset!("traffic-high"),
 ];
 
 // Closed
 const ALERT_ROAD_CLOSED: &[&str; 1] = &[DEFAULT];
-const ALERT_ROAD_CLOSED_ASSETS: &[&[u8]; 1] = &[include_bytes!("../assets/closure.png")];
+const ALERT_ROAD_CLOSED_ASSETS: &[&[u8]; 1] = &[bytes_asset!("closure")];
 
 // Accident
 const ALERT_ACCIDENT: &[&str; 1] = &[DEFAULT];
-const ALERT_ACCIDENT_ASSETS: &[&[u8]; 1] = &[include_bytes!("../assets/accident.png")];
+const ALERT_ACCIDENT_ASSETS: &[&[u8]; 1] = &[bytes_asset!("accident")];
 
 // Police
 const ALERT_POLICE: &[&str; 1] = &[DEFAULT];
-const ALERT_POLICE_ASSETS: &[&[u8]; 1] = &[include_bytes!("../assets/police.png")];
+const ALERT_POLICE_ASSETS: &[&[u8]; 1] = &[bytes_asset!("police")];
 
 // Correlation
 const ALERTS: [&str; 5] = ["HAZARD", "JAM", "ROAD_CLOSED", "ACCIDENT", "POLICE"];
