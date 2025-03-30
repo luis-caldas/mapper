@@ -1,3 +1,9 @@
+/***********
+ * Imports *
+ ***********/
+
+use std::f64::consts;
+
 /**************
  * Structures *
  **************/
@@ -57,8 +63,8 @@ pub fn xyz_to_coordinate(pane: &XYZ) -> Coordinate {
     let longitude = ((f64::from(pane.x) / n) * 360.0) - 180.0;
 
     // Latitude
-    let latitude = (180.0 / std::f64::consts::PI)
-        * (std::f64::consts::PI * (1.0 - 2.0 * (f64::from(pane.y) / n)))
+    let latitude = (180.0 / consts::PI)
+        * (consts::PI * (1.0 - 2.0 * (f64::from(pane.y) / n)))
             .sinh()
             .atan();
 
