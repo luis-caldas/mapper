@@ -14,6 +14,7 @@ pub struct XYZ {
     pub z: u16,
 }
 
+#[derive(Clone)]
 pub struct Coordinate {
     pub lat: f64,
     pub lon: f64,

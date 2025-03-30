@@ -18,6 +18,7 @@ use serde::Deserialize;
 use std::net::{Ipv4Addr, SocketAddr};
 
 // Utilities
+mod cache;
 mod cross;
 mod getter;
 mod paint;

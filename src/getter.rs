@@ -28,6 +28,7 @@ const IN_LOCATION_Y: &str = "y";
  * Structs *
  ***********/
 
+#[derive(Clone)]
 pub struct Alert {
     pub icon: String,
     pub subicon: String,
