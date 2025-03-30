@@ -1,3 +1,9 @@
+/***********
+ * Imports *
+ ***********/
+
+use crate::utils;
+
 /*************
  * Variables *
  *************/
@@ -32,7 +38,7 @@ pub const IN_LOCATION_Y: &str = "y";
  * Functions *
  *************/
 
-fn replace_url_waz(input: &str, position: &crate::utils::Plot) -> String {
+fn replace_url_waz(input: &str, position: &utils::Plot) -> String {
     input
         .replace("{top}", &position.top.lat.to_string())
         .replace("{left}", &position.top.lon.to_string())
@@ -40,14 +46,14 @@ fn replace_url_waz(input: &str, position: &crate::utils::Plot) -> String {
         .replace("{right}", &position.bottom.lon.to_string())
 }
 
-fn replace_url(input: &str, position: &crate::utils::XYZ) -> String {
+fn replace_url(input: &str, position: &utils::XYZ) -> String {
     input
         .replace("{x}", &position.x.to_string())
         .replace("{y}", &position.y.to_string())
         .replace("{z}", &position.z.to_string())
 }
 
-pub async fn get_tiles(user_agent: &str, position: &crate::utils::XYZ) -> Vec<Vec<u8>> {
+pub async fn get_tiles(user_agent: &str, position: &utils::XYZ) -> Vec<Vec<u8>> {
     // URLs
     let mut urls: Vec<String> = Vec::new();
     for url in LINKS.iter() {
@@ -94,7 +100,7 @@ pub async fn get_tile(url: &str, user_agent: &str) -> Result<Vec<u8>, reqwest::E
     Ok(bytes.to_vec())
 }
 
-pub async fn get_jsons(user_agent: &str, position: &crate::utils::Plot) -> serde_json::Value {
+pub async fn get_jsons(user_agent: &str, position: &utils::Plot) -> serde_json::Value {
     // URLs
     let url = replace_url_waz(&WAZ, &position);
 
