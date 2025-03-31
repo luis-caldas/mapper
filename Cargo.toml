@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 chrono = "0.4"
 tokio = { version = "1", features = ["full"] }
+moka = { version = "0.12.10", features = ["sync", "future"] }
 reqwest = { version = "0.12", features = ["json", "gzip"] }
 axum = "0.8"
 axum-extra = { version = "0.10", features = ["typed-routing", "typed-header"] }

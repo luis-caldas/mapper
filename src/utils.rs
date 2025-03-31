@@ -2,12 +2,14 @@
  * Imports *
  ***********/
 
+use std::cmp;
 use std::f64::consts;
 
 /**************
  * Structures *
  **************/
 
+#[derive(Hash, Clone, Eq, PartialEq)]
 pub struct XYZ {
     pub x: u32,
     pub y: u32,
@@ -55,21 +57,17 @@ pub const TILE_ORIGINAL_START: u32 = TILE_OFFSET * TILE_SIZE;
 // Location of the point on an icon
 const ICON_POINT: Ratios = Ratios { x: 0.5, y: 1.0 };
 
-// Cache
-pub const CACHE_ZOOM: u16 = 10; // XYZ - Z
-pub const CACHE_TTL: u16 = 60; // Seconds
-
 /*************
  * Functions *
  *************/
 
-// Find lower bound of slice
-pub fn slicer(number: u64, size: u16) -> u64 {
-    number - (number % u64::from(size))
-}
-
 // Change zoom scale
 pub fn zoom_scale(new_z: u16, pane: &XYZ) -> XYZ {
+    // Check if we need to scale
+    if pane.z <= new_z {
+        return pane.clone();
+    }
+
     // Get Correlation
     let correlation = i32::from(i32::from(pane.z) - i32::from(new_z));
 
@@ -147,14 +145,23 @@ pub fn translate_edge(dimensions: &Raster, position: &Raster) -> Raster {
 
 // Grow a pad by factors
 pub fn grow_pad(offset: u32, pane: &XYZ) -> Plot {
+    let min_tile = 0_i32;
+    let max_tile = 2_u32.pow(u32::from(pane.z));
+
+    // Check boundaries
+    let top_x = cmp::max(min_tile, (pane.x as i32) - (offset as i32));
+    let top_y = cmp::max(min_tile, (pane.y as i32) - (offset as i32));
+    let bottom_x = cmp::min(max_tile, (pane.x + offset) as u32 + 1);
+    let bottom_y = cmp::min(max_tile, (pane.y + offset) as u32 + 1);
+
     let top = XYZ {
-        x: (pane.x - offset) as u32,
-        y: (pane.y - offset) as u32,
+        x: top_x as u32,
+        y: top_y as u32,
         z: pane.z,
     };
     let bottom = XYZ {
-        x: (pane.x + offset) as u32 + 1,
-        y: (pane.y + offset) as u32 + 1,
+        x: bottom_x as u32,
+        y: bottom_y as u32,
         z: pane.z,
     };
 
