@@ -3,7 +3,7 @@
  ***********/
 
 // Async
-use tokio::{task, time};
+use tokio::task;
 // HTTP
 use axum::{
     body::Body,
@@ -18,8 +18,6 @@ use axum_extra::{headers::UserAgent, TypedHeader};
 use serde::Deserialize;
 // Cache
 use moka::future::Cache;
-// Time
-use std::time::Duration;
 // Standard
 use std::net::{Ipv4Addr, SocketAddr};
 
@@ -62,20 +60,18 @@ async fn main() {
     // Cache
     let cloud: Cache<utils::XYZ, Vec<getter::Alert>> = Cache::new(cache::CACHE_MAX);
     let clean_cloud = cloud.clone();
-    let tiloud: Cache<utils::XYZ, Vec<Vec<Vec<u8>>>> = Cache::new(cache::CACHE_MAX);
+    let tiloud: Cache<utils::XYZ, Vec<Vec<u8>>> = Cache::new(cache::CACHE_MAX);
     let clean_tiloud = cloud.clone();
 
     // Clear cache periodically
-    let forever = task::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(cache::CACHE_TTL));
-        loop {
-            // Wait for the given interval
-            interval.tick().await;
-            // Clear cache
-            clean_cloud.invalidate_all();
-            clean_tiloud.invalidate_all();
-        }
-    });
+    let tile_cleaner = task::spawn(cache::clean_cache(
+        clean_tiloud.clone(),
+        cache::CACHE_TTL_TILE,
+    ));
+    let data_cleaner = task::spawn(cache::clean_cache(
+        clean_cloud.clone(),
+        cache::CACHE_TTL_DATA,
+    ));
 
     // Build Web Application
     let app = Router::new()
@@ -98,7 +94,8 @@ async fn main() {
     .await
     .unwrap();
 
-    forever.await.unwrap();
+    tile_cleaner.await.unwrap();
+    data_cleaner.await.unwrap();
 }
 
 /***********
@@ -107,7 +104,10 @@ async fn main() {
 
 // Basic
 async fn default(
-    State((cached, tiled)): State<(Cache<utils::XYZ, Vec<getter::Alert>>, Cache<utils::XYZ, Vec<Vec<Vec<u8>>>>)>,
+    State((cached, tiled)): State<(
+        Cache<utils::XYZ, Vec<getter::Alert>>,
+        Cache<utils::XYZ, Vec<Vec<u8>>>,
+    )>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     TypedHeader(raw_agent): TypedHeader<UserAgent>,
     arguments: Query<Arguments>,
@@ -122,8 +122,18 @@ async fn default(
         z: arguments.z,
     };
 
-    // Start tiles straight away
-    let data_tiles = getter::get_tiles(&user_agent, &given_xyz);
+    // Look for either the tile cache or get it
+    let cache_alerts = tiled.get(&given_xyz).await;
+    let data_chosen = async {
+        match cache_alerts {
+            Some(something) => something,
+            None => {
+                let extracted = getter::get_tiles(&user_agent, &given_xyz).await;
+                tiled.insert(given_xyz.clone(), extracted.clone()).await;
+                extracted
+            }
+        }
+    };
 
     // Zoom out for a larger cached area and grow it
     let cache_area = utils::zoom_scale(cache::CACHE_ZOOM, &given_xyz);
@@ -131,7 +141,7 @@ async fn default(
     // Generic big area that we will actually use for painting
     let pings_spaced = utils::grow_pad(utils::TILE_OFFSET, &given_xyz);
 
-    // Look for cache
+    // Look for cache and use it if present
     let cache_alerts = cached.get(&cache_area).await;
     let pings_chosen = async {
         match cache_alerts {
@@ -155,7 +165,7 @@ async fn default(
     let tiles_alerts = paint::alerts_to_tile(&pings_area, &pings_spaced);
 
     // Join all tiles & extract its bytes
-    let tiles_joined = paint::join_tiles(&data_tiles.await, &tiles_alerts);
+    let tiles_joined = paint::join_tiles(&data_chosen.await, &tiles_alerts);
     let tiles_bytes = paint::png_bytes(&tiles_joined);
 
     // Response
