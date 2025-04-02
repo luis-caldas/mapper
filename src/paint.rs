@@ -74,7 +74,18 @@ pub fn join_tiles(tiles: &Vec<Vec<u8>>, tiled: &RgbaImage) -> RgbaImage {
 
     // Add each tile
     for tile in tiles.iter() {
-        imageops::overlay(&mut base, &image::load_from_memory(&tile).unwrap(), 0, 0);
+        let image = image::load_from_memory(&tile).unwrap();
+        if image.width() != utils::TILE_SIZE {
+            let up = imageops::resize(
+                &image,
+                utils::TILE_SIZE,
+                utils::TILE_SIZE,
+                imageops::FilterType::Nearest,
+            );
+            imageops::overlay(&mut base, &up, 0, 0);
+        } else {
+            imageops::overlay(&mut base, &image, 0, 0);
+        }
     }
 
     // Add the last overlay tile

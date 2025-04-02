@@ -42,7 +42,7 @@ pub struct Ratios {
  *************/
 
 // Tiling
-pub const TILE_SIZE: u32 = 256; // Pixels
+pub const TILE_SIZE: u32 = 512; // Pixels
 
 // Offsets around tile
 pub const TILE_OFFSET: u32 = 1;
