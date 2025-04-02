@@ -1,8 +1,24 @@
-FROM rust:1
+### # Builder # ###
+FROM rust:1 AS builder
 
-WORKDIR /usr/src/mapper
+# Files
+WORKDIR /build
 COPY . .
 
-RUN cargo install --path .
+# Build
+RUN cargo build --release
 
-CMD ["mapper"]
+### # Runner # ###
+FROM debian:stable-slim AS runner
+
+# Packages
+RUN apt-get update && \
+    apt-get install -y \
+    openssl ca-certificates
+
+# Files
+WORKDIR /app
+COPY --from=builder /build/target/release/mapper .
+
+# Execute
+ENTRYPOINT ["./mapper"]

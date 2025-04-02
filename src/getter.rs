@@ -73,9 +73,8 @@ pub async fn get_tiles(user_agent: &str, position: &utils::XYZ) -> Vec<Vec<u8>> 
     // Tiles
     let mut tiles = Vec::new();
     for promise in promises {
-        let tile = promise.await;
-        if tile.is_ok() {
-            tiles.push(tile.unwrap());
+        if let Ok(tile) = promise.await {
+            tiles.push(tile);
         }
     }
 
