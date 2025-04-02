@@ -19,6 +19,7 @@ use serde::Deserialize;
 // Cache
 use moka::future::Cache;
 // Standard
+use std::env;
 use std::net::{Ipv4Addr, SocketAddr};
 
 // Utilities
@@ -35,6 +36,7 @@ mod utils;
 
 // Address
 const ADDRESS: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+const PORT_ENV: &str = "PORT";
 const PORT: u16 = 8080;
 const NAME: &str = "mapper";
 
@@ -58,10 +60,10 @@ struct Arguments {
 #[tokio::main]
 async fn main() {
     // Cache
+    let tiloud: Cache<utils::XYZ, Vec<Vec<u8>>> = Cache::new(cache::CACHE_MAX);
+    let clean_tiloud = tiloud.clone();
     let cloud: Cache<utils::XYZ, Vec<getter::Alert>> = Cache::new(cache::CACHE_MAX);
     let clean_cloud = cloud.clone();
-    let tiloud: Cache<utils::XYZ, Vec<Vec<u8>>> = Cache::new(cache::CACHE_MAX);
-    let clean_tiloud = cloud.clone();
 
     // Clear cache periodically
     let tile_cleaner = task::spawn(cache::clean_cache(
@@ -80,7 +82,11 @@ async fn main() {
         .with_state((cloud.clone(), tiloud.clone()));
 
     // Create listener
-    let bind: String = format!("{}:{}", ADDRESS, PORT);
+    let bind: String = format!(
+        "{}:{}",
+        ADDRESS,
+        env::var(PORT_ENV).unwrap_or(PORT.to_string())
+    );
     let listener = tokio::net::TcpListener::bind(bind.as_str()).await.unwrap();
 
     // Verbose
