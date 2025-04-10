@@ -134,9 +134,16 @@ async fn default(
         match cache_alerts {
             Some(something) => something,
             None => {
-                let extracted = getter::get_tiles(&user_agent, &given_xyz).await;
-                tiled.insert(given_xyz.clone(), extracted.clone()).await;
-                extracted
+                // Get 4 subtiles and merge them
+                let sub_tiles = utils::sub_tiles(&given_xyz);
+                let quadrants = getter::get_quadrant_tiles(&user_agent, &sub_tiles).await;
+                // Transform quadrants into tiles
+                // Also resize if needed
+                let fit = paint::join_quadrant_tiles(&quadrants).await;
+                // Cache them
+                tiled.insert(given_xyz.clone(), fit.clone()).await;
+                // Return
+                fit
             }
         }
     };

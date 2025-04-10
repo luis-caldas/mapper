@@ -54,6 +54,38 @@ fn replace_url(input: &str, position: &utils::XYZ) -> String {
         .replace("{z}", &position.z.to_string())
 }
 
+pub async fn get_quadrant_tiles(
+    user_agent: &str,
+    quadrants: &Vec<utils::XYZ>,
+) -> Vec<Vec<Vec<u8>>> {
+    // Initialise quadrants
+    let mut quadrants_tiles: Vec<Vec<Vec<u8>>> = Vec::new();
+
+    let mut promises = Vec::new();
+    for quadrant in quadrants.iter() {
+        let tiles = get_tiles(&user_agent, &quadrant);
+        promises.push(tiles);
+    }
+
+    // Fix structure
+    let tiles_length = LINKS.len();
+    let mut ordered_tiles: Vec<Vec<Vec<u8>>> = Vec::new();
+
+    for promise in promises {
+        quadrants_tiles.push(promise.await);
+    }
+
+    for i in 0..tiles_length {
+        let mut temp: Vec<Vec<u8>> = Vec::new();
+        for j in 0..quadrants_tiles.len() {
+            temp.push(quadrants_tiles[j][i].clone());
+        }
+        ordered_tiles.push(temp);
+    }
+
+    ordered_tiles
+}
+
 pub async fn get_tiles(user_agent: &str, position: &utils::XYZ) -> Vec<Vec<u8>> {
     // URLs
     let mut urls: Vec<String> = Vec::new();

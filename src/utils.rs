@@ -82,6 +82,47 @@ pub fn zoom_scale(new_z: u16, pane: &XYZ) -> XYZ {
     }
 }
 
+pub fn sub_tiles(pane: &XYZ) -> Vec<XYZ> {
+    // Create predefined vector
+    let mut tiles: Vec<XYZ> = Vec::new();
+
+    let new_z = pane.z + 1;
+
+    // Check if we are at maximum
+    if new_z >= 15 {
+        tiles.push(pane.clone());
+        return tiles;
+    }
+
+    // Calculate edge
+    let corner_x = pane.x * 2;
+    let corner_y = pane.y * 2;
+
+    // Insert tiles
+    tiles.push(XYZ {
+        x: corner_x + 0,
+        y: corner_y + 0,
+        z: new_z,
+    });
+    tiles.push(XYZ {
+        x: corner_x + 1,
+        y: corner_y + 0,
+        z: new_z,
+    });
+    tiles.push(XYZ {
+        x: corner_x + 0,
+        y: corner_y + 1,
+        z: new_z,
+    });
+    tiles.push(XYZ {
+        x: corner_x + 1,
+        y: corner_y + 1,
+        z: new_z,
+    });
+
+    tiles
+}
+
 // XYZ -> Lat & Lon
 pub fn xyz_to_coordinate(pane: &XYZ) -> Coordinate {
     // Size

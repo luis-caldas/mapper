@@ -68,6 +68,54 @@ pub fn alerts_to_tile(alerts: &Vec<getter::Alert>, spacer: &utils::Plot) -> Rgba
     )
 }
 
+pub async fn join_quadrant_tiles(tiles: &Vec<Vec<Vec<u8>>>) -> Vec<Vec<u8>> {
+    // Base
+    let mut all_tiles: Vec<Vec<u8>> = Vec::new();
+
+    // Add each tile
+    for tile in tiles.iter() {
+        let image = if tile.len() == 1 {
+            image::load_from_memory(&tile.first().unwrap())
+                .unwrap()
+                .to_rgba8()
+        } else {
+            // New joined
+            let mut joiner = RgbaImage::new(utils::TILE_SIZE, utils::TILE_SIZE);
+            // Load images
+            let top_left = image::load_from_memory(&tile[0]).unwrap();
+            let top_right = image::load_from_memory(&tile[1]).unwrap();
+            let bottom_left = image::load_from_memory(&tile[2]).unwrap();
+            let bottom_right = image::load_from_memory(&tile[3]).unwrap();
+            // Size
+            let size = top_left.width().into();
+            // Overlay each
+            imageops::overlay(&mut joiner, &top_left, 0, 0);
+            imageops::overlay(&mut joiner, &top_right, size, 0);
+            imageops::overlay(&mut joiner, &bottom_left, 0, size);
+            imageops::overlay(&mut joiner, &bottom_right, size, size);
+
+            joiner
+        };
+
+        // Stretch the tile if needed
+        let insert_image = if image.width() != utils::TILE_SIZE {
+            imageops::resize(
+                &image,
+                utils::TILE_SIZE,
+                utils::TILE_SIZE,
+                imageops::FilterType::Nearest,
+            )
+        } else {
+            image
+        };
+
+        let png_data = png_bytes(&insert_image);
+        all_tiles.push(png_data);
+    }
+
+    all_tiles
+}
+
 pub fn join_tiles(tiles: &Vec<Vec<u8>>, tiled: &RgbaImage) -> RgbaImage {
     // Base
     let mut base = RgbaImage::new(utils::TILE_SIZE, utils::TILE_SIZE);

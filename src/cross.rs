@@ -104,7 +104,7 @@ pub fn find_alert_asset<'start, 'end>(main_type: &'start str, sub_type: &'start 
     {
         Some(item) => item,
         None => {
-            let information = format!("Sub Alert - {} > {} - Not Found", main_type, sub_type);
+            let information = format!("Sub Alert - {} > ({}) - Not Found", main_type, sub_type);
             print::print_info(&information);
             DEFAULT_INDEX
         }
