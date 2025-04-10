@@ -1,3 +1,9 @@
+/***********
+ * Imports *
+ ***********/
+
+use crate::print;
+
 /**********
  * Macros *
  **********/
@@ -62,15 +68,15 @@ const ALERT_POLICE_ASSETS: &[&[u8]; 1] = &[bytes_asset!("police")];
 // Correlation
 const ALERTS: [&str; 5] = ["HAZARD", "JAM", "ROAD_CLOSED", "ACCIDENT", "POLICE"];
 const SUB_ALERTS: [&[&str]; 5] = [
-    ALERT_TYPE_JAM,
     ALERT_TYPE_HAZARD,
+    ALERT_TYPE_JAM,
     ALERT_ROAD_CLOSED,
     ALERT_ACCIDENT,
     ALERT_POLICE,
 ];
 const SUB_ALERTS_ASSETS: [&[&[u8]]; 5] = [
-    ALERT_TYPE_JAM_ASSETS,
     ALERT_TYPE_HAZARD_ASSETS,
+    ALERT_TYPE_JAM_ASSETS,
     ALERT_ROAD_CLOSED_ASSETS,
     ALERT_ACCIDENT_ASSETS,
     ALERT_POLICE_ASSETS,
@@ -82,16 +88,27 @@ const SUB_ALERTS_ASSETS: [&[&[u8]]; 5] = [
 
 pub fn find_alert_asset<'start, 'end>(main_type: &'start str, sub_type: &'start str) -> &'end [u8] {
     // Get Type
-    let found_main_type = ALERTS
-        .iter()
-        .position(|&each| each == main_type)
-        .unwrap_or(DEFAULT_INDEX);
+    let found_main_type = match ALERTS.iter().position(|&each| each == main_type) {
+        Some(item) => item,
+        None => {
+            let information = format!("Alert - {} - Not Found", main_type);
+            print::print_info(&information);
+            DEFAULT_INDEX
+        }
+    };
 
     // Otherwise we have a chance to narrow down
-    let found_sub_type = SUB_ALERTS[found_main_type]
+    let found_sub_type = match SUB_ALERTS[found_main_type]
         .iter()
         .position(|&each| each == sub_type)
-        .unwrap_or(DEFAULT_INDEX);
+    {
+        Some(item) => item,
+        None => {
+            let information = format!("Sub Alert - {} > {} - Not Found", main_type, sub_type);
+            print::print_info(&information);
+            DEFAULT_INDEX
+        }
+    };
 
     SUB_ALERTS_ASSETS[found_main_type][found_sub_type]
 }

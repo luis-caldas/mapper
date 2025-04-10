@@ -18,10 +18,21 @@ const STRFTIME: &str = "%y-%m-%d %T";
 // Literals
 const PRINT_COMING: &str = "<<<";
 const PRINT_GOING: &str = ">>>";
+const PRINT_INFO: &str = "INFO";
 
 /*************
  * Functions *
  *************/
+
+pub fn print_info(data: &str) -> () {
+    let now = chrono::Utc::now();
+    println!(
+        "[{}] [{}] {}",
+        now.format(STRFTIME).to_string(),
+        PRINT_INFO.yellow(),
+        data,
+    );
+}
 
 pub fn print_in(addr: &str, user_agent: &str) -> () {
     let now = chrono::Utc::now();
